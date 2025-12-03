@@ -624,3 +624,48 @@
 
                 const cameraInstance = new Camera(videoElement, {
                     onFrame: async () => {
+                        await hands.send({image: videoElement});
+                    },
+                    width: 640,
+                    height: 480
+                });
+                
+                await cameraInstance.start();
+
+                // Wait for calibration
+                const calibrationInterval = setInterval(() => {
+                    if (calibrationFrames >= CALIBRATION_THRESHOLD) {
+                        clearInterval(calibrationInterval);
+                        
+                        // Transition UI
+                        document.getElementById('start-screen').style.opacity = '0';
+                        setTimeout(() => {
+                            document.getElementById('start-screen').style.display = 'none';
+                        }, 500);
+                        
+                        document.getElementById('ui-layer').style.display = 'block';
+                        document.getElementById('preview-card').style.display = 'block';
+                        
+                        setShape('jupiter');
+                        animate();
+                    }
+                }, 100);
+
+            } catch (err) {
+                console.error("Initialization error:", err);
+                errorLog.innerText = `SYSTEM FAILURE: ${err.message}\n${err.name === 'NotAllowedError' ? '(Camera permission denied)' : '(Check browser compatibility)'}`;
+                startBtn.style.display = 'block';
+                startBtn.innerText = "RETRY";
+                calibrationStatus.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
