@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Particle Core | 6DoF</title>
     <style>
-        /* --- CORE STYLES --- */
         body { 
             margin: 0; overflow: hidden; background-color: #000; 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        /* --- UI LAYER (Glassmorphism) --- */
         #ui-layer {
             position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
             width: 95%; max-width: 500px;
@@ -40,35 +38,68 @@
             box-shadow: 0 0 15px rgba(255,255,255,0.3);
         }
 
-        /* --- PREVIEW WINDOW (Top Right) --- */
+        /* Preview Window - Smaller, Data Only */
         #preview-card {
             position: absolute; top: 20px; right: 20px;
-            width: 120px; height: 160px;
-            background: #000;
+            width: 160px;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(16px);
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, 0.15);
-            overflow: hidden;
+            padding: 12px;
             display: none; z-index: 90;
-            transform: scaleX(-1);
-        }
-        #preview-canvas { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
-        
-        /* Stats Overlay on Preview */
-        #gesture-stats {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            color: #00d2ff; font-size: 0.6rem; font-family: monospace;
-            padding: 5px; box-sizing: border-box; transform: scaleX(-1);
-            pointer-events: none;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            color: #00d2ff;
         }
 
-        /* --- START SCREEN --- */
+        #preview-card .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #preview-card .label {
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            font-size: 0.6rem;
+        }
+
+        #preview-card .value {
+            color: #00d2ff;
+            font-weight: bold;
+        }
+
+        #hands-status {
+            text-align: center;
+            color: #00ff88;
+            font-size: 0.65rem;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Start Screen */
         #start-screen {
             position: absolute; inset: 0;
             background: radial-gradient(circle at center, #1a1a2e 0%, #000000 100%);
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 1000; transition: opacity 0.5s;
         }
+        
+        #calibration-status {
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: rgba(0, 210, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            color: #00d2ff;
+            font-size: 0.85rem;
+            display: none;
+        }
+
         #start-btn {
             padding: 20px 50px; font-size: 1.2rem;
             background: linear-gradient(90deg, #00d2ff, #3a7bd5);
@@ -77,7 +108,6 @@
             text-transform: uppercase; letter-spacing: 2px;
         }
 
-        /* --- HIDDEN VIDEO --- */
         #input-video { display: none; }
         #error-log { color: #ff4757; margin-top: 20px; font-size: 0.8rem; max-width: 80%; text-align: center; }
     </style>
@@ -86,17 +116,49 @@
 
     <div id="start-screen">
         <h1 style="color:white; font-weight:200; letter-spacing:4px; margin-bottom:10px;">PARTICLE CORE</h1>
-        <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:40px;">6DoF Hand Tracking Enabled</p>
+        <p style="color:rgba(255,255,255,0.4); font-size:0.8rem; margin-bottom:40px;">Dual-Hand 6DoF Tracking</p>
         <button id="start-btn">ENGAGE SYSTEM</button>
+        <div id="calibration-status">
+            <div>📹 Camera Active</div>
+            <div id="hand-detect-status">✋ Detecting hands...</div>
+        </div>
         <div id="error-log"></div>
     </div>
 
     <div id="preview-card">
-        <canvas id="preview-canvas"></canvas>
-        <div id="gesture-stats">
-            ROTs: <span id="rot-val">0</span>°<br>
-            TEN: <span id="ten-val">0</span>%
+        <div style="text-align:center; margin-bottom:10px; color:#fff; font-weight:bold; font-size:0.75rem;">TRACKING DATA</div>
+        
+        <div class="data-row">
+            <span class="label">Hands</span>
+            <span class="value" id="hands-count">0</span>
         </div>
+        
+        <div class="data-row">
+            <span class="label">Position X</span>
+            <span class="value" id="pos-x">0.00</span>
+        </div>
+        
+        <div class="data-row">
+            <span class="label">Position Y</span>
+            <span class="value" id="pos-y">0.00</span>
+        </div>
+        
+        <div class="data-row">
+            <span class="label">Position Z</span>
+            <span class="value" id="pos-z">0.00</span>
+        </div>
+        
+        <div class="data-row">
+            <span class="label">Rotation</span>
+            <span class="value" id="rot-val">0°</span>
+        </div>
+        
+        <div class="data-row">
+            <span class="label">Grip</span>
+            <span class="value" id="ten-val">0%</span>
+        </div>
+        
+        <div id="hands-status">Ready</div>
     </div>
 
     <div id="ui-layer">
@@ -117,49 +179,67 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
     <script>
-        // --- 1. SYSTEM CONFIGURATION ---
+        // --- CONFIGURATION ---
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         const PARTICLE_COUNT = isMobile ? 4000 : 12000; 
         
         let currentState = 'jupiter';
+        let calibrationFrames = 0;
+        const CALIBRATION_THRESHOLD = 30; // Frames needed to complete calibration
         
-        // Interaction State
+        // 6DoF Hand State - Maps directly to 3D space
         const handState = {
-            tension: 0,
-            tiltX: 0,
-            tiltZ: 0,
-            panX: 0,
-            panY: 0,
-            detected: false
+            // Position (X, Y, Z in camera space)
+            posX: 0,        // Left (-1) to Right (1)
+            posY: 0,        // Down (-1) to Up (1)
+            posZ: 0,        // Far (-1) to Near (1) - based on hand size
+            
+            // Rotation (Euler angles)
+            rotX: 0,        // Pitch (up/down tilt)
+            rotY: 0,        // Yaw (left/right turn)
+            rotZ: 0,        // Roll (twist)
+            
+            // Interaction
+            grip: 0,        // 0 (open) to 1 (closed fist)
+            handsDetected: 0,
+            
+            // Smoothing
+            targetPosX: 0,
+            targetPosY: 0,
+            targetPosZ: 0,
+            targetRotX: 0,
+            targetRotY: 0,
+            targetRotZ: 0
         };
 
-        // --- 2. THREE.JS ENGINE ---
+        // --- THREE.JS SETUP ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x000000, 0.02);
+        scene.fog = new THREE.FogExp2(0x000000, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-        camera.position.z = isMobile ? 35 : 28;
+        camera.position.set(0, 0, isMobile ? 35 : 28);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: !isMobile, alpha: true, powerPreference: "high-performance" });
+        const renderer = new THREE.WebGLRenderer({ 
+            antialias: !isMobile, 
+            alpha: true, 
+            powerPreference: "high-performance" 
+        });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
         document.body.appendChild(renderer.domElement);
 
-        // --- 3. PARTICLE SYSTEM ---
+        // --- PARTICLE SYSTEM ---
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(PARTICLE_COUNT * 3);
         const colors = new Float32Array(PARTICLE_COUNT * 3);
         const targetPositions = new Float32Array(PARTICLE_COUNT * 3);
         const baseColors = new Float32Array(PARTICLE_COUNT * 3);
-        const speeds = new Float32Array(PARTICLE_COUNT);
 
         for(let i=0; i<PARTICLE_COUNT; i++) {
             const i3 = i*3;
             positions[i3] = (Math.random()-0.5)*100;
             positions[i3+1] = (Math.random()-0.5)*100;
             positions[i3+2] = (Math.random()-0.5)*100;
-            targetPositions[i3] = positions[i3];
-            speeds[i] = Math.random();
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -191,7 +271,7 @@
         const particles = new THREE.Points(geometry, material);
         scene.add(particles);
 
-        // --- 4. SHAPE GENERATOR ---
+        // --- SHAPE GENERATORS ---
         window.setShape = (type) => {
             currentState = type;
             document.querySelectorAll('.shape-btn').forEach(b => b.classList.remove('active'));
@@ -222,20 +302,52 @@
                     if(x > 3 && x < 7 && y > -3 && y < -1 && z > 0) { r=1.0; g=0.2; b=0.1; }
 
                 } else if (type === 'dna') {
-                    const t = i * 0.05;
-                    const strand = (i % 2 === 0) ? 1 : -1;
-                    const rad = 6;
+                    // Improved DNA Double Helix
+                    const t = (i / p) * Math.PI * 8; // More turns
+                    const helixRadius = 5;
+                    const helixHeight = 30;
+                    const strandOffset = 2.5;
                     
-                    x = Math.cos(t) * rad + (strand * 2);
-                    y = (i / p) * 40 - 20;
-                    z = Math.sin(t) * rad;
-
-                    if(strand === 1) { r=0; g=0.8; b=1; }
-                    else { r=1; g=0; b=0.5; }
+                    // Determine if this particle is strand 1, strand 2, or a base pair
+                    const particleType = i % 100;
                     
-                    if (Math.random() > 0.9) {
-                        x *= 0.1; z *= 0.1;
-                        r=1; g=1; b=1;
+                    if (particleType < 40) {
+                        // Strand 1 (Cyan)
+                        const phase = (i % 40) / 40;
+                        const angle = t + (phase * Math.PI * 2);
+                        x = Math.cos(angle) * helixRadius;
+                        y = (i / p) * helixHeight - (helixHeight/2);
+                        z = Math.sin(angle) * helixRadius;
+                        r = 0.1; g = 0.9; b = 1.0;
+                        
+                    } else if (particleType < 80) {
+                        // Strand 2 (Magenta) - offset by π
+                        const phase = (i % 40) / 40;
+                        const angle = t + Math.PI + (phase * Math.PI * 2);
+                        x = Math.cos(angle) * helixRadius;
+                        y = (i / p) * helixHeight - (helixHeight/2);
+                        z = Math.sin(angle) * helixRadius;
+                        r = 1.0; g = 0.2; b = 0.8;
+                        
+                    } else {
+                        // Base pairs (connecting rungs) - White
+                        const rungIndex = Math.floor(i / 100);
+                        const rungT = (rungIndex / (p/100)) * Math.PI * 8;
+                        const progress = (particleType - 80) / 20; // 0 to 1 across rung
+                        
+                        const angle1 = rungT;
+                        const angle2 = rungT + Math.PI;
+                        
+                        const x1 = Math.cos(angle1) * helixRadius;
+                        const z1 = Math.sin(angle1) * helixRadius;
+                        const x2 = Math.cos(angle2) * helixRadius;
+                        const z2 = Math.sin(angle2) * helixRadius;
+                        
+                        x = x1 + (x2 - x1) * progress;
+                        z = z1 + (z2 - z1) * progress;
+                        y = (rungIndex / (p/100)) * helixHeight - (helixHeight/2);
+                        
+                        r = 0.9; g = 0.9; b = 0.9;
                     }
 
                 } else if (type === 'saturn') {
@@ -273,121 +385,213 @@
             }
         };
 
-        // --- 5. HAND TRACKING LOGIC (6DoF) ---
+        // --- HAND TRACKING ---
         const videoElement = document.getElementById('input-video');
-        const previewCanvas = document.getElementById('preview-canvas');
-        const previewCtx = previewCanvas.getContext('2d');
 
-        function onResults(results) {
-            previewCanvas.width = videoElement.videoWidth;
-            previewCanvas.height = videoElement.videoHeight;
-            previewCtx.save();
-            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
-            previewCtx.drawImage(results.image, 0, 0, previewCanvas.width, previewCanvas.height);
-
-            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                handState.detected = true;
-                const lm = results.multiHandLandmarks[0];
-                
-                // Draw hand skeleton
-                if (typeof drawConnectors !== 'undefined' && typeof HAND_CONNECTIONS !== 'undefined') {
-                    drawConnectors(previewCtx, lm, HAND_CONNECTIONS, {color: '#00d2ff', lineWidth: 2});
-                    drawLandmarks(previewCtx, lm, {color: '#FF0000', lineWidth: 1, radius: 2});
-                }
-
-                // Tension calculation
-                const wrist = lm[0];
-                const midTip = lm[12];
-                const dist = Math.sqrt(Math.pow(midTip.x-wrist.x,2) + Math.pow(midTip.y-wrist.y,2));
-                let t = 1 - ((dist - 0.15)/0.3);
-                handState.tension = Math.max(0, Math.min(1, t));
-
-                // Position
-                const palm = lm[9];
-                handState.panX = (palm.x - 0.5) * 2; 
-                handState.panY = (palm.y - 0.5) * 2;
-
-                // Rotation
-                const midBase = lm[9];
-                const dx = midBase.x - wrist.x;
-                const dy = midBase.y - wrist.y;
-                handState.tiltZ = -Math.atan2(dx, dy);
-                
-                document.getElementById('rot-val').innerText = Math.round(handState.tiltZ * (180/Math.PI));
-                document.getElementById('ten-val').innerText = Math.round(handState.tension * 100);
-
-            } else {
-                handState.detected = false;
-                handState.tension *= 0.95;
-                handState.panX *= 0.95;
-                handState.panY *= 0.95;
-                handState.tiltZ *= 0.95;
-            }
+        function calculateHandDepth(landmarks) {
+            // Estimate depth based on hand size (distance between wrist and middle finger tip)
+            const wrist = landmarks[0];
+            const middleTip = landmarks[12];
+            const indexTip = landmarks[8];
+            const pinkyTip = landmarks[20];
             
-            previewCtx.restore();
+            // Calculate hand span
+            const span = Math.sqrt(
+                Math.pow(indexTip.x - pinkyTip.x, 2) + 
+                Math.pow(indexTip.y - pinkyTip.y, 2)
+            );
+            
+            // Larger span = closer to camera (map 0.1-0.4 to depth range)
+            return (span - 0.15) / 0.25; // Normalized to roughly -1 to 1
         }
 
-        // --- 6. ANIMATION LOOP ---
+        function calculateHandRotation(landmarks) {
+            const wrist = landmarks[0];
+            const middleBase = landmarks[9];
+            const indexBase = landmarks[5];
+            
+            // Yaw (left/right rotation)
+            const yaw = Math.atan2(middleBase.x - wrist.x, middleBase.y - wrist.y);
+            
+            // Roll (twist)
+            const roll = Math.atan2(indexBase.x - middleBase.x, indexBase.y - middleBase.y);
+            
+            // Pitch (up/down tilt) - using Z coordinates
+            const pitch = (middleBase.z - wrist.z) * 5; // Scale up for visibility
+            
+            return { pitch, yaw, roll };
+        }
+
+        function calculateGrip(landmarks) {
+            // Calculate average distance from fingertips to palm
+            const palm = landmarks[9];
+            const tips = [4, 8, 12, 16, 20]; // Thumb, Index, Middle, Ring, Pinky
+            
+            let totalDist = 0;
+            tips.forEach(tipIdx => {
+                const tip = landmarks[tipIdx];
+                totalDist += Math.sqrt(
+                    Math.pow(tip.x - palm.x, 2) + 
+                    Math.pow(tip.y - palm.y, 2)
+                );
+            });
+            
+            const avgDist = totalDist / tips.length;
+            // Map distance to grip (0.05 = closed, 0.25 = open)
+            const grip = 1 - Math.max(0, Math.min(1, (avgDist - 0.05) / 0.2));
+            return grip;
+        }
+
+        function onResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                handState.handsDetected = results.multiHandLandmarks.length;
+                
+                // Use primary hand (right if available, otherwise first detected)
+                let primaryHand = results.multiHandLandmarks[0];
+                
+                // If two hands, prefer right hand
+                if (results.multiHandLandmarks.length === 2 && results.multiHandedness) {
+                    const rightHandIndex = results.multiHandedness.findIndex(h => h.label === 'Right');
+                    if (rightHandIndex !== -1) {
+                        primaryHand = results.multiHandLandmarks[rightHandIndex];
+                    }
+                }
+                
+                const lm = primaryHand;
+                
+                // Position (direct mapping from palm center)
+                const palm = lm[9];
+                handState.targetPosX = (palm.x - 0.5) * 2;      // -1 to 1
+                handState.targetPosY = -(palm.y - 0.5) * 2;     // Invert Y (screen coords to world coords)
+                handState.targetPosZ = calculateHandDepth(lm);
+                
+                // Rotation
+                const rotation = calculateHandRotation(lm);
+                handState.targetRotX = rotation.pitch;
+                handState.targetRotY = rotation.yaw;
+                handState.targetRotZ = rotation.roll;
+                
+                // Grip
+                handState.grip = calculateGrip(lm);
+                
+                // Calibration
+                if (calibrationFrames < CALIBRATION_THRESHOLD) {
+                    calibrationFrames++;
+                    if (calibrationFrames === CALIBRATION_THRESHOLD) {
+                        document.getElementById('hand-detect-status').innerHTML = '✅ Calibration Complete';
+                    }
+                }
+                
+            } else {
+                handState.handsDetected = 0;
+                // Decay to neutral
+                handState.targetPosX *= 0.95;
+                handState.targetPosY *= 0.95;
+                handState.targetPosZ *= 0.95;
+                handState.grip *= 0.9;
+            }
+            
+            // Update UI
+            document.getElementById('hands-count').innerText = handState.handsDetected;
+            document.getElementById('pos-x').innerText = handState.posX.toFixed(2);
+            document.getElementById('pos-y').innerText = handState.posY.toFixed(2);
+            document.getElementById('pos-z').innerText = handState.posZ.toFixed(2);
+            document.getElementById('rot-val').innerText = Math.round(handState.rotY * (180/Math.PI)) + '°';
+            document.getElementById('ten-val').innerText = Math.round(handState.grip * 100) + '%';
+            
+            const statusEl = document.getElementById('hands-status');
+            if (handState.handsDetected === 0) {
+                statusEl.innerText = '⚠️ No Hands Detected';
+                statusEl.style.color = '#ff4757';
+            } else if (handState.handsDetected === 1) {
+                statusEl.innerText = '👋 Single Hand Mode';
+                statusEl.style.color = '#00d2ff';
+            } else {
+                statusEl.innerText = '👐 Dual Hand Detected';
+                statusEl.style.color = '#00ff88';
+            }
+        }
+
+        // --- ANIMATION LOOP ---
         const clock = new THREE.Clock();
 
         function animate() {
             requestAnimationFrame(animate);
             const time = clock.getElapsedTime();
+            const dt = clock.getDelta();
+            
+            // Smooth interpolation of hand state
+            const smoothing = 0.15;
+            handState.posX += (handState.targetPosX - handState.posX) * smoothing;
+            handState.posY += (handState.targetPosY - handState.posY) * smoothing;
+            handState.posZ += (handState.targetPosZ - handState.posZ) * smoothing;
+            handState.rotX += (handState.targetRotX - handState.rotX) * smoothing;
+            handState.rotY += (handState.targetRotY - handState.rotY) * smoothing;
+            handState.rotZ += (handState.targetRotZ - handState.rotZ) * smoothing;
+            
+            // Apply hand transformations to particle system
+            // Position: Move particles in 3D space
+            particles.position.x = handState.posX * 15;
+            particles.position.y = handState.posY * 15;
+            particles.position.z = handState.posZ * 10;
+            
+            // Rotation: Direct mapping to particle rotation
+            particles.rotation.x = handState.rotX;
+            particles.rotation.y = handState.rotY + (time * 0.1); // Add gentle auto-spin
+            particles.rotation.z = handState.rotZ;
+            
+            // Particle physics
             const positions = geometry.attributes.position.array;
             const cols = geometry.attributes.color.array;
-
-            particles.rotation.z += (handState.tiltZ - particles.rotation.z) * 0.1;
             
-            const targetRotY = handState.panX * 1.5;
-            const targetRotX = handState.panY * 1.5;
-            
-            particles.rotation.y += (targetRotY - particles.rotation.y + (time*0.1)) * 0.05;
-            particles.rotation.x += (targetRotX - particles.rotation.x) * 0.05;
-
-            const scaleBase = 1.0 + (Math.sin(time)*0.05);
-            const scaleTension = 1.0 + (handState.tension * 0.3);
+            // Scale based on grip (squeeze = compress, release = expand)
+            const scaleBase = 1.0 + Math.sin(time * 0.5) * 0.05; // Gentle breathing
+            const scaleGrip = 1.0 - (handState.grip * 0.4); // Grip compresses
+            const finalScale = scaleBase * scaleGrip;
             
             for(let i=0; i<PARTICLE_COUNT; i++) {
                 const i3 = i*3;
                 
-                let tx = targetPositions[i3] * scaleBase * scaleTension;
-                let ty = targetPositions[i3+1] * scaleBase * scaleTension;
-                let tz = targetPositions[i3+2] * scaleBase * scaleTension;
-
-                if(handState.tension > 0.1) {
-                    const jitter = handState.tension * 2.0;
-                    tx += (Math.random()-0.5)*jitter;
-                    ty += (Math.random()-0.5)*jitter;
-                    tz += (Math.random()-0.5)*jitter;
-                }
-
-                const speed = 0.05 + (handState.tension * 0.2);
+                let tx = targetPositions[i3] * finalScale;
+                let ty = targetPositions[i3+1] * finalScale;
+                let tz = targetPositions[i3+2] * finalScale;
                 
+                // Add energy jitter when gripping
+                if(handState.grip > 0.2) {
+                    const jitter = handState.grip * 1.5;
+                    tx += (Math.random()-0.5) * jitter;
+                    ty += (Math.random()-0.5) * jitter;
+                    tz += (Math.random()-0.5) * jitter;
+                }
+                
+                // Smooth particle movement
+                const speed = 0.08 + (handState.grip * 0.15);
                 positions[i3] += (tx - positions[i3]) * speed;
                 positions[i3+1] += (ty - positions[i3+1]) * speed;
                 positions[i3+2] += (tz - positions[i3+2]) * speed;
-
-                const t = handState.tension;
-                cols[i3] = baseColors[i3] * (1-t) + (1.0 * t);
-                cols[i3+1] = baseColors[i3+1] * (1-t) + (1.0 * t);
-                cols[i3+2] = baseColors[i3+2] * (1-t) + (1.0 * t);
+                
+                // Color: Grip adds white energy
+                const energy = handState.grip;
+                cols[i3] = baseColors[i3] * (1-energy) + (1.0 * energy);
+                cols[i3+1] = baseColors[i3+1] * (1-energy) + (1.0 * energy);
+                cols[i3+2] = baseColors[i3+2] * (1-energy) + (1.0 * energy);
             }
-
+            
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
             renderer.render(scene, camera);
         }
 
-        // --- 7. INITIALIZATION ---
+        // --- INITIALIZATION ---
         const startBtn = document.getElementById('start-btn');
         const errorLog = document.getElementById('error-log');
+        const calibrationStatus = document.getElementById('calibration-status');
 
         startBtn.addEventListener('click', async () => {
-            startBtn.innerText = "CALIBRATING OPTICS...";
-            startBtn.disabled = true;
+            startBtn.style.display = 'none';
+            calibrationStatus.style.display = 'block';
 
             try {
-                // Request camera first
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         facingMode: "user",
@@ -400,66 +604,23 @@
                 
                 await new Promise((resolve, reject) => {
                     videoElement.onloadedmetadata = () => {
-                        videoElement.play()
-                            .then(resolve)
-                            .catch(reject);
+                        videoElement.play().then(resolve).catch(reject);
                     };
                     videoElement.onerror = reject;
                 });
 
-                // Initialize MediaPipe Hands
                 const hands = new Hands({
                     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
                 });
                 
                 hands.setOptions({
-                    maxNumHands: 1,
+                    maxNumHands: 2, // Support two hands
                     modelComplexity: isMobile ? 0 : 1,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5
+                    minDetectionConfidence: 0.6,
+                    minTrackingConfidence: 0.6
                 });
                 
                 hands.onResults(onResults);
 
-                // Start camera processing
                 const cameraInstance = new Camera(videoElement, {
                     onFrame: async () => {
-                        await hands.send({image: videoElement});
-                    },
-                    width: 640,
-                    height: 480
-                });
-                
-                await cameraInstance.start();
-
-                // Transition UI
-                document.getElementById('start-screen').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('start-screen').style.display = 'none';
-                }, 500);
-                
-                document.getElementById('ui-layer').style.display = 'block';
-                document.getElementById('preview-card').style.display = 'block';
-                
-                // Start 3D
-                setShape('jupiter');
-                animate();
-
-            } catch (err) {
-                console.error("Initialization error:", err);
-                errorLog.innerText = `SYSTEM FAILURE: ${err.message}\n${err.name === 'NotAllowedError' ? '(Camera permission denied)' : '(Check browser compatibility)'}`;
-                startBtn.innerText = "RETRY";
-                startBtn.disabled = false;
-            }
-        });
-
-        // Resize handler
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth/window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-    </script>
-</body>
-</html>
