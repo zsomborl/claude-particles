@@ -290,7 +290,7 @@
 <body>
     <div class="scanline"></div>
     <div id="container"></div>
-    <video id="video" width="640" height="480"></video>
+    <video id="video" width="640" height="480" playsinline style="display: none;"></video>
     <canvas id="canvas" width="640" height="480"></canvas>
 
     <div class="control-panel">
@@ -701,12 +701,25 @@
         });
 
         async function startCamera() {
+            // Mobile: show error unless HTTPS
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                errorEl.textContent = "Camera access requires HTTPS on mobile.";
+                return;
+            }
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user', width: 640, height: 480 } 
-                });
-                
+                // Prefer user-facing camera on mobile
+                let constraints = {
+                    video: {
+                        facingMode: { ideal: 'user' },
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+                // getUserMedia and mobile configuration
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                video.setAttribute('playsinline', ''); // iOS-specific
                 video.play();
                 cameraActive = true;
                 canvas.style.display = 'block';
@@ -715,25 +728,28 @@
                 cameraBtnText.textContent = 'DEACTIVATE';
                 instructions.innerHTML = '<span style="color: #ffdd77">TWO HANDS:</span> Spread apart/together | <span style="color: #ffdd77">ONE HAND:</span> Open/close fingers';
                 errorEl.textContent = '';
-                
                 if (!hands && window.Hands) {
                     hands = new window.Hands({
                         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
                     });
-                    
                     hands.setOptions({
                         maxNumHands: 2,
                         modelComplexity: 1,
                         minDetectionConfidence: 0.7,
-                        minTrackingConfidence: 0.7
+                        minTrackingConfidence: 0.7,
                     });
-                    
                     hands.onResults(onHandResults);
-                    
                     video.addEventListener('loadeddata', processFrame);
                 }
             } catch (err) {
-                errorEl.textContent = 'Camera access denied. Please enable camera permissions.';
+                // Improved mobile error handling for camera access
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorEl.textContent = 'Camera access denied. Please enable camera permissions in your browser settings.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    errorEl.textContent = "No camera found. Is your device camera enabled?";
+                } else {
+                    errorEl.textContent = 'Camera error: ' + err.message;
+                }
                 console.error('Camera error:', err);
             }
         }
@@ -751,6 +767,7 @@
             cameraBtnText.textContent = 'ACTIVATE SCAN';
             instructions.textContent = 'ACTIVATE SCAN TO ENABLE GESTURE CONTROL';
         }
+
 
         async function processFrame() {
             if (video.readyState === 4 && cameraActive) {
